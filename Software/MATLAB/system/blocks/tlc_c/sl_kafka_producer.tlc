@@ -1,0 +1,95 @@
+%% Copyright 2019 The MathWorks, Inc.
+
+%implements "sl_kafka_producer" "C"
+
+%include "sl_kafka_utils.tlc"
+
+%function BlockTypeSetup(block, system) void
+    %warning "In BlockTypeSetup"
+    %<FcnKafkaBlocksSetup()>
+%endfunction %% BlockTypeSetup
+
+%function Start(block, system) Output
+    /* %<Name>
+     * Brokers: %<SFcnParamSettings.Brokers>"
+     * Topics: "%<SFcnParamSettings.Topic> 
+     */
+    {
+        int ret;
+        rd_kafka_t * rk;
+        rd_kafka_topic_t *rkt;
+
+        ec_kafka_init();
+        
+        mwLogInit("embedded_coder_%<CompiledModel.Name>");
+
+        if (slKafkaBroker == NULL) {
+            slKafkaBroker = (char *)"%<SFcnParamSettings.Brokers>";
+        }
+        %assign nConf = SFcnParamSettings.nConf
+        %assign nTopicConf = SFcnParamSettings.nTopicConf
+        %if ISEQUAL(nConf+nTopicConf, 0)
+            ret = mwInitializeKafkaProducer(&rk, &rkt, slKafkaBroker, "%<SFcnParamSettings.Topic>", 
+                0, 0, NULL);        
+        %else
+            {
+                int nConf = %<nConf>;
+                int nTopicConf = %<nTopicConf>;
+                static const char *confArray[256] = {
+                    %foreach idx = nConf+nTopicConf
+                        %if idx > 0
+                        , \
+                        %endif
+                        "%<SFcnParamSettings.ConfArray[idx]>" \
+                    %endforeach
+                };
+                ret = mwInitializeKafkaProducer(&rk, &rkt, slKafkaBroker, "%<SFcnParamSettings.Topic>", 
+                    nConf, nTopicConf, confArray);
+            }
+        %endif
+        if (ret) {
+            fprintf(stderr, "Error creating Kafka Producer. Error code: %d\nExiting program.\n", ret);
+            exit(ret);
+        }
+        %<LibBlockDWork(PWORK, "", "", 0)> = (void*) rk;
+        %<LibBlockDWork(PWORK, "", "", 1)> = (void*) rkt;
+
+    }
+
+%endfunction %% Start
+
+%function Outputs(block, system) Output
+    /* %<Name>
+     * All: %<SFcnParamSettings>
+     */
+     %assign retryLabel = "retry_%<block.Identifier>"
+    {
+
+        %assign U = LibBlockInputSignalAddr(0, "", "", 0)
+        rd_kafka_t * rk = (rd_kafka_t *)%<LibBlockDWork(PWORK, "", "", 0)>;
+        rd_kafka_topic_t *rkt = (rd_kafka_topic_t *) %<LibBlockDWork(PWORK, "", "", 1)>;
+
+        %if SFcnParamSettings.UseExtKey
+            %assign KEY = LibBlockInputSignalAddr(1, "", "", 0)
+            char *key = (char*) %<KEY>;
+            int keylen = strlen(key);
+        %else
+            const char *key = "%<SFcnParamSettings.Key>";
+            int keylen = %<SIZE(SFcnParamSettings.Key)[1]>;
+        %endif
+        char *buf  = (char*) %<LibBlockInputSignalAddr(0, "", "", 0)>;
+        int N = strlen(buf);
+        int ret;
+
+        ret =  mwProduceKafkaMessage(rk, rkt, key, keylen, buf, N);
+    }
+
+%endfunction %% Outputs
+
+%function Terminate(block, system) Output
+    %% rd_kafka_t * rk = (rd_kafka_t *)%<LibBlockDWork(PWORK, "", "", 0)>;
+    %% rd_kafka_topic_t *rkt = (rd_kafka_topic_t *) %<LibBlockDWork(PWORK, "", "", 1)>;
+    mwTerminateKafkaProducer((rd_kafka_t *)%<LibBlockDWork(PWORK, "", "", 0)>, (rd_kafka_topic_t *) %<LibBlockDWork(PWORK, "", "", 1)>);
+    mwLogTerminate();
+%endfunction %% Terminate
+

@@ -1,0 +1,31 @@
+%% sl_kafka_utils.tlc
+
+%% Copyright 2019 The MathWorks, Inc.
+
+%if !EXISTS("::SL_KAFKA_UTILS_TLC")
+    %assign ::SL_KAFKA_UTILS_TLC = TLC_TRUE
+
+    %function FcnKafkaDebug()
+        %% %return TLC_TRUE
+        %return TLC_FALSE
+    %endfunction  %% FcnKafkaDebug
+
+    %function FcnKafkaBlocksSetup() void
+        %if !EXISTS("::SL_KAFKA_BLOCKTYPE_INIT")
+            %assign ::SL_KAFKA_BLOCKTYPE_INIT = TLC_TRUE
+            %warning "In FcnKafkaBlocksSetup"
+            %<LibAddToCommonIncludes("librdkafka/rdkafka.h")>
+            %assign srcDir = FEVAL("kafka.getRoot", "system", "blocks", "src")
+            %<LibAddToCommonIncludes("librdkafka/rdkafka.h")>
+            %<LibAddToCommonIncludes("stdio.h")>
+            %<LibAddToCommonIncludes("stdlib.h")>
+            %<LibAddToCommonIncludes("string.h")>
+            %<LibAddToCommonIncludes("ec_kafka_utils.h")>
+            %% %<LibAddToModelSources("ec_kafka_utils")>
+            %<LibAddToCommonIncludes("mw_kafka_utils.h")>
+            %% %<LibAddToModelSources("mw_kafka_utils")>
+        %endif
+    %endfunction
+
+
+%endif

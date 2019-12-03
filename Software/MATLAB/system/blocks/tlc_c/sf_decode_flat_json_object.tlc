@@ -1,0 +1,65 @@
+%% Copyright 2019 The MathWorks, Inc.
+
+%implements "sf_decode_flat_json_object" "C"
+
+%function BlockTypeSetup(block, system) void
+%warning "In BlockTypeSetup"
+    %<LibAddToCommonIncludes("sl_jansson_funs.h")>
+    %% Call LibGetT to have absolute time in model
+    /* %<LibGetT()> */
+
+%endfunction %% BlockTypeSetup
+
+%function Outputs(block, system) Output
+    %assign N = SIZE(SFcnParamSettings.JSONFieldList)[1]
+    %if SFcnParamSettings.IsEncoding
+        %% ENCODING
+        {
+            int32_T count = 0;
+            char_T *JS = (char_T*) %<LibBlockOutputSignalAddr(0, "", "", 0)>;
+            /* %<N> Fields !!! */
+
+            %foreach k = N
+                %assign FN = SFcnParamSettings.JSONFieldList[k]
+                %assign U = LibBlockInputSignal(k, "", "", 0)
+                %if ISEQUAL(k,0)
+                    count += sprintf(JS+count, "{\"%<FN>\":%.10f", %<U>);
+                %else
+                    count += sprintf(JS+count, ",\"%<FN>\":%.10f", %<U>);
+                %endif
+            %endforeach
+            JS[count++] = '}';
+            JS[count] = '\0';
+            %if SFcnParamSettings.UseOutLength
+                %<LibBlockOutputSignal(1, "", "", 0)> = count;
+            %endif
+        }
+    %else
+        %% DECODING
+        {
+            json_t *root;
+            json_error_t error;
+            %assign U = LibBlockInputSignalAddr(0, "", "", 0)
+            %if SFcnParamSettings.UseInLength
+                %assign LEN = LibBlockInputSignal(1, "", "", 0)
+                root = json_loadb((const char*)%<U>, %<LEN>, 0, &error);
+            %else
+                root = json_loads((const char*)%<U>, 0, &error);
+            %endif
+            if (!root) {
+                fprintf(stderr, "Error: on line %d: %s\n", error.line, error.text);
+            } else {
+
+                if (!json_is_object(root)) {
+                    fprintf(stderr, "The toplevel element should be an object in our case\n");
+                } else {
+                    %foreach k = N
+                        %assign FN = SFcnParamSettings.JSONFieldList[k]
+                        %assign Y = LibBlockOutputSignal(k, "", "", 0)
+                        %<Y> = getRealFromJSONField("%<FN>", root);
+                    %endforeach
+                }
+            }
+        }
+    %endif
+%endfunction

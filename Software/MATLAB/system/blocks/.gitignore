@@ -1,0 +1,5 @@
+sfuntmpl_basic.c
+sfuntmpl_doc.c
+*.mexw64
+*.mexa64
+

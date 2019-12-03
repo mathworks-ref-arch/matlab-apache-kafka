@@ -1,0 +1,113 @@
+%% Copyright 2019 The MathWorks, Inc.
+
+%implements "sl_kafka_consumer" "C"
+
+%include "sl_kafka_utils.tlc"
+
+%function BlockTypeSetup(block, system) void
+    %warning "In BlockTypeSetup"
+    %<FcnKafkaBlocksSetup()>
+%endfunction %% BlockTypeSetup
+
+%function Start(block, system) Output
+    /* %<Name> */
+    {
+        int ret;
+        rd_kafka_t * rk;
+        fprintf(stdout, "In start of %<Name>\n");
+
+        ec_kafka_init();
+
+        if (slKafkaBroker == NULL) {
+            slKafkaBroker = (char*)"%<SFcnParamSettings.Brokers>";
+        }
+        if (slKafkaGroup == NULL) {
+            slKafkaGroup = (char*)"%<SFcnParamSettings.Group>";
+        }
+         %assign nConf = SFcnParamSettings.nConf
+        %assign nTopicConf = SFcnParamSettings.nTopicConf
+        %if ISEQUAL(nConf+nTopicConf, 0)
+            ret = mwInitializeKafkaConsumer(&rk, slKafkaBroker, slKafkaGroup, "%<SFcnParamSettings.Topic>", 
+                0, 0, NULL);
+        %else
+             {
+                int nConf = %<nConf>;
+                int nTopicConf = %<nTopicConf>;
+                static const char *confArray[256] = {
+                    %foreach idx = nConf+nTopicConf
+                        %if idx > 0
+                        , \
+                        %endif
+                        "%<SFcnParamSettings.ConfArray[idx]>" \
+                    %endforeach
+                };
+                ret = mwInitializeKafkaConsumer(&rk, slKafkaBroker, slKafkaGroup, "%<SFcnParamSettings.Topic>", 
+                    nConf, nTopicConf, confArray);
+            }
+       %endif
+        if (ret) {
+            fprintf(stderr, "Error code: %d\nExiting program.\n", ret);
+            exit(ret);
+        }
+        %<LibBlockDWork(PWORK, "", "", 0)> = (void*) rk;
+        %% %<LibBlockDWork(PWORK, "", "", 1)> = (void*) rkt;
+        %if FcnKafkaDebug()
+            fprintf(stdout, "Initialized kafkaconsumer for broker %<SFcnParamSettings.Brokers>, group %<SFcnParamSettings.Group>, topic %<SFcnParamSettings.Topic>\n");
+        %endif
+    }
+%endfunction %% Start
+
+%function Outputs(block, system) Output
+    /* %<block.Name> */
+    /* SFcnParamSettings: %<SFcnParamSettings> */
+    {
+        rd_kafka_t * rk = (rd_kafka_t *)%<LibBlockDWork(PWORK, "", "", 0)>;
+        int ret;
+
+        %assign MSG = LibBlockOutputSignalAddr(1, "", "", 0)
+        %assign MSGLEN = LibBlockOutputSignal(2, "", "", 0)
+        %assign PMSGLEN = LibBlockOutputSignalAddr(2, "", "", 0)
+        %assign KEY = LibBlockOutputSignalAddr(3, "", "", 0)
+        %assign KEYLEN = LibBlockOutputSignal(4, "", "", 0)
+        %assign PKEYLEN = LibBlockOutputSignalAddr(4, "", "", 0)
+        %assign P_MSG_LEN = LibBlockOutputSignalWidth(1)
+        %assign P_KEY_LEN = LibBlockOutputSignalWidth(3)
+
+        %assign N_OUT = LibBlockNumOutputPorts(block)
+        %if ISEQUAL(N_OUT, 6)
+            %assign TIMESTAMP = LibBlockOutputSignalAddr(5, "", "", 0)
+        %else
+            %assign TIMESTAMP = "NULL"
+        %endif
+
+        ret = mwConsumeKafkaMessage(rk,
+                           %<MSG>, %<PMSGLEN>, %<P_MSG_LEN>,
+                           %<KEY>, %<PKEYLEN>, %<P_KEY_LEN>,
+                           %<TIMESTAMP>);
+
+                //Call the subsystem attached
+                %with SFcnSystemOutputCall[0]
+                    %% skip unconnected function call outputs
+                    %if LibIsEqual(BlockToCall, "unconnected")
+                        %% Do nothing
+                    %else
+                        if (ret) {
+                            %assign sysIdx  = BlockToCall[0]
+                            %assign blkIdx  = BlockToCall[1]
+                            %assign ssBlock = System[sysIdx].Block[blkIdx]
+                            %% %openfile tmp2Buffer
+                            %<LibExecuteFcnCall(ssBlock, FcnPortElement, block.TID)>\
+                            %% %closefile tmp2Buffer
+                        }
+                    %endif                    
+                %endwith
+
+    }
+    %% %breakpoint
+
+%endfunction %% Outputs
+
+%function Terminate(block, system) Output
+    %% rd_kafka_t * rk = (rd_kafka_t *)%<LibBlockDWork(PWORK, "", "", 0)>;
+    mwTerminateKafkaConsumer((rd_kafka_t *)%<LibBlockDWork(PWORK, "", "", 0)>);
+%endfunction %% Terminate

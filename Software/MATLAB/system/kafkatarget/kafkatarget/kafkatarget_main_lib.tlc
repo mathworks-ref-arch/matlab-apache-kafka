@@ -1,0 +1,382 @@
+%% kafkatarget_main_lib.tlc
+%% File with helper functions for generating a main file for the Kafka target.
+%%
+%% Copyright 2019 The MathWorks, Inc.
+
+%if !EXISTS("::_KAFKA_MAIN_LIB_TLC")
+    %assign ::_KAFKA_MAIN_LIB_TLC = TLC_TRUE
+
+    %% This file may have to be included through another file, e.g. "ertposixthread.tlc"
+    %include "commonthreadlib.tlc"
+
+    %function FcnKafkaGetCTAPI()
+        %createrecord tmp { ...
+            semdatatype "sem_t" ...
+            taskdatatype "pthread_t" ...
+            semwaitcall "sem_wait" ...
+            taskexitcall "pthread_exit" ...
+            sempostcall "sem_post" ...
+            initcall "myRTOSInit" ...
+        }
+        %return tmp
+    %endfunction %% FcnKafkaGetCTAPI
+
+    %function locFcnGetNumberSubrateTasks()
+        %assign isSingleTasking = RootSystemIsSingleRate || SLibSingleTasking()
+        %if LibIsDeploymentDiagram()
+        %assign numSubrateTasks = libFcnGetNumberMdsTasks()      
+        %elseif isSingleTasking
+        %assign numSubrateTasks = 0
+        %else
+        %assign numSubrateTasks = FcnNumST() - 1 - FixedStepOpts.TID01EQ
+        %endif
+        %return numSubrateTasks
+    %endfunction
+
+    %function FcnKafkaGenExitTask(ctAPI)
+        %openfile tmpFileBuf 
+        %% %assign HONORRUNTIMESTOPREQUEST = FEVAL("codertarget.attributes.getAttribute", CompiledModel.Name, "HonorRunTimeStopRequest")
+
+        void exitFcn(int sig)
+        {
+            UNUSED(sig);
+            %<RTMSetErrStat("\"stopping the model\"")>;
+            %% %if !HONORRUNTIMESTOPREQUEST
+            %% runModel = 0;
+            %% %endif
+        }
+        %closefile tmpFileBuf
+        %return tmpFileBuf
+    %endfunction
+
+    %function FcnKafkaGenTerminateTask(ctAPI, INCLUDESTDIO)
+        %openfile tmpFileBuf 
+        void *terminateTask(void *arg)
+        {
+            UNUSED(arg);
+            terminatingmodel = 1;
+            runModel = 0;
+
+
+            %<LibCallModelTerminate()>\
+            %<ctAPI.sempostcall>(&stopSem); 
+            return NULL;
+        }
+        %closefile tmpFileBuf
+        %return tmpFileBuf
+    %endfunction %% FcnKafkaGenTerminateTask
+
+    %function FcnKafkaGenBaseRateTask(ctAPI) Output
+        %% %assign supportsToAsyncBlkInsertion = locGetSupportsAsyncBlkInsertion()
+        %% %assign MODELSTOPFCN = FEVAL("codertarget.targethardware.getTargetModelStopCall", CompiledModel.Name)
+        %% %assign HONORRUNTIMESTOPREQUEST = FEVAL("codertarget.attributes.getAttribute", CompiledModel.Name, "HonorRunTimeStopRequest") 
+        void *baseRateTask(void *arg)
+        {
+            %if ISEQUAL(CompiledModel.SuppressErrorStatus,0)
+                runModel = %<ERTStopCheck()>; 
+                %% %<SLibRTMGetErrStat()>; 
+            %endif   
+            while (runModel) 
+            {
+                %% %if supportsToAsyncBlkInsertion
+                %%     TgtConnPreStep(0);
+                %% %endif
+                    %<ctAPI.semwaitcall>(&baserateTaskSem);  
+                %% %if ISEQUAL(ctAPI.detectoverrun,1)
+                %%     %<ctAPI.mutexlockcall>(&rateTaskFcnRunningMutex[0]);
+                %% %endif
+                %if !SLibIsAsyncTaskOnlyModel()  
+                    %% /* Step the model for base rate */
+                    %<LibCallModelStep(0)>\
+                    %% %<SLibCallMdlStepSingleTasking(1)>
+                %endif
+                %if ISEQUAL(CompiledModel.SuppressErrorStatus,0)
+                    runModel = %<ERTStopCheck()>; 
+                    %% %<SLibRTMGetErrStat()>; 
+                %endif   
+                %% %if supportsToAsyncBlkInsertion
+                %%     TgtConnPostStep(0);
+                %% %endif
+                %% %if ExtMode
+                %%     rtExtModeCheckEndTrigger();
+                %% %endif
+                %% %if ISEQUAL(ctAPI.detectoverrun,1)
+                %%     %<ctAPI.mutexunlockcall>(&rateTaskFcnRunningMutex[0]);
+                %% %endif
+                %% %if ISEQUAL(CompiledModel.SuppressErrorStatus,0)
+                %%     stopRequested = !(%<SLibRTMGetErrStat()>);
+                %%     %if HONORRUNTIMESTOPREQUEST || ExtMode
+                %%         runModel = !stopRequested;
+                %%     %endif
+                %% %endif
+                %% %if HONORRUNTIMESTOPREQUEST && !ISEMPTY(MODELSTOPFCN)
+                %%     runModel = runModel && !%<MODELSTOPFCN>;
+                %% %endif
+                %% %if MatFileLogging && !HONORRUNTIMESTOPREQUEST
+                %%     %<SLibGenLoggingStop("MATFILE")>
+                %% %endif
+            }
+            runModel = 0;
+            terminateTask(arg);
+            %<ctAPI.taskexitcall>((void *)0);
+            return NULL;
+        }
+    %endfunction %% FcnKafkaGenBaseRateTask
+
+    %function FcnKafkaMainStaticInit() Output
+        #include <unistd.h>
+        #include <time.h>
+        #include <math.h>
+        #include <signal.h>
+        #include <errno.h>
+        %if ISEQUAL(1, KafkaUseThreadsForTiming)
+            #include "linuxinitialize.h"  
+            #include "MW_custom_RTOS_header.h"
+        %endif
+        %assign isSingleTasking = RootSystemIsSingleRate || SLibSingleTasking()
+        %assign numSubrateTasks = locFcnGetNumberSubrateTasks()
+        %assign numAperiodicTasks = SLibGetNumAperiodicTasks()      
+        %assign ctAPI = FcnKafkaGetCTAPI()
+        %% static unsigned int baseRateMicros = (unsigned int)1000*1000*%<FcnGetPeriodFromTID(0)>;
+        %% static long baseRateNons = 1000*1000*1000*(long)%<FcnGetPeriodFromTID(0)>;
+        static double baseRateSeconds = %<FcnGetPeriodFromTID(0)>;
+        static struct timespec baseRateTS;
+        volatile boolean_T stopRequested = false;
+        volatile boolean_T runModel = true;
+        %if ISEQUAL(1, KafkaUseThreadsForTiming)
+            %<ctAPI.semdatatype> stopSem;
+            %<ctAPI.semdatatype> baserateTaskSem;
+            %if (!isSingleTasking) || (LibIsDeploymentDiagram())
+                %if (numSubrateTasks > 0)
+                    %<ctAPI.semdatatype> subrateTaskSem[%<numSubrateTasks>]; 
+                    int taskId[%<numSubrateTasks>];
+                %endif
+                %if (numAperiodicTasks > 0)
+                    %<ctAPI.taskdatatype> asyncThread[%<numAperiodicTasks>];
+                %endif
+            %endif
+            %<ctAPI.taskdatatype> schedulerThread; 
+            %<ctAPI.taskdatatype> baseRateThread; 
+
+            %if (ExtMode == 1)
+                %assign ExtModeInBackground = locIsExtModeInBackground()
+                %if ExtModeInBackground
+                    %<ctAPI.taskdatatype> backgroundThread;
+                %endif
+            %endif
+
+            void *threadJoinStatus;
+            int terminatingmodel = 0;
+            %if (!isSingleTasking) || (LibIsDeploymentDiagram())
+                %<ctAPI.taskdatatype> subRateThread[%<numSubrateTasks>];
+            %endif
+        
+            %% %if ISEQUAL(ctAPI.detectoverrun,1)
+            %%     %<ctAPI.mutexdatatype> rateTaskFcnRunningMutex[%<numSubrateTasks+1>];
+            %%     %if ISEQUAL(isesbenabled, TLC_TRUE)
+            %%         %if (numSubrateTasks > 0)
+            %%             int _mwDropOverranSubrate[%<numSubrateTasks>];            
+            %%         %endif
+            %%     %endif
+            %% %endif
+
+            %if (numSubrateTasks > 0)
+                int subratePriority[%<numSubrateTasks>];
+            %endif
+
+            %% %if locLibIsCoreAffinityRequired(isesbenabled)
+            %%     int coreAffinityBaseRate;
+            %%     int coreAffinity[%<numSubrateTasks>];
+            %% %endif
+            %% %if (numISRs > 0)
+            %%     int eventsToBlock[%<locLibGetNumberISRs()>];
+            %% %endif
+
+            %% %if ISEQUAL(ctAPI.detectoverrun,1)
+            %%     %<locLibRenderOverrunDetectionDecl(ctAPI)>
+            %% %endif
+            %<FcnKafkaGenBaseRateTask(ctAPI)>
+    
+            %<FcnKafkaGenExitTask(ctAPI)>
+
+            %<FcnKafkaGenTerminateTask(ctAPI, TLC_TRUE)>
+
+            void sigintHandler(int sig_num) { 
+                %% printf("Received CTRL+C from user, trying to stop.\n");
+                %<RTMSetErrStat("\"CTRL+C received from user\"")>;
+            }
+        %endif
+
+    %endfunction %% FcnKafkaIncludes
+
+    %function FcnKafkaMainLoopContent() Output
+        /* Loop forever */
+        while (%<ERTStopCheck()>) {
+            struct timespec t0, t1, tDiff, tWait;
+            double timeLeftToWait;
+            long lDiff;
+
+
+            %if TLC_FALSE
+            struct timespec RES;
+            if (clock_getres(CLOCK_MONOTONIC, &RES)) {
+                mwLog(MW_WARN, "MainLoop", "Cannot get resolution\n");
+            } else {
+                char msg[256];
+                sprintf(msg, "RES: %ld.%09ld\n", RES.tv_sec, RES.tv_nsec);
+                mwLog(MW_INFO, "MainLoop", msg);
+            }
+            %endif
+
+            if (clock_gettime(CLOCK_MONOTONIC, &t0)) {
+                mwLog(MW_WARN, "MainLoop", "Problem reading time t0.");
+            }
+            #ifdef SL_SHOW_SIMULATION_TIME
+            if (++countOF > 1000) {
+                double simTime = %<LibGetT()>;
+                char msg[256];
+                sprintf(msg, "Simulation time: %f\n", simTime);
+                mwLog(MW_INFO, "MainLoop", msg);
+                countOF = 0;
+            }
+            #endif
+
+            rt_OneStep();
+            if (clock_gettime(CLOCK_MONOTONIC, &t1)) {
+                mwLog(MW_WARN, "MainLoop", "Problem reading time t1.");
+            }
+            timespec_diff(&t0, &t1, &tDiff);
+
+            
+            lDiff = timespec_diff(&tDiff, &baseRateTS, &tWait);
+
+            %% print_timespec(&tWait, "tWait, before");
+
+            while (lDiff > 0) {
+                struct timespec tRES;
+
+                if (nanosleep(&tWait, &tRES) < 0) {
+                    char msg[256];
+                    sprintf(msg, "Nanosleep errored out: errnon == %d\n", errno);
+                    mwLog(MW_ERROR, "MainLoop", msg);
+                }
+                if (clock_gettime(CLOCK_MONOTONIC, &t1)) {
+                mwLog(MW_WARN, "MainLoop", "Problem reading time t1.");
+                }
+                timespec_diff(&t0, &t1, &tDiff);
+                lDiff = timespec_diff(&tDiff, &baseRateTS, &tWait);    
+            }
+        }
+    %endfunction %%  FcnKafkaMainLoopContent
+
+    %function FcnKafkaGenerateMWRTOSHeader() void
+        %assign hFile = LibCreateSourceFile("Header", "Custom", "MW_custom_RTOS_header")
+        %assign isSingleTasking = RootSystemIsSingleRate || SLibSingleTasking()
+        %assign BaseRate = 40 
+        %assign ctAPI = FcnKafkaGetCTAPI()
+
+        %% locLibFcnGetBaseRatePriority()  
+        %openfile tmpBuf
+        #define MW_BASERATE_PRIORITY %<BaseRate>
+        #define MW_BASERATE_PERIOD %<FcnGetPeriodFromTID(0)>
+        #define MW_NUMBER_SUBRATES %<locFcnGetNumberSubrateTasks()>
+        #define MW_NUMBER_APERIODIC_TASKS %<SLibGetNumAperiodicTasks()>
+        #define MW_IS_CONCURRENT %<!ISEQUAL(CompiledModel.ConcurrentTasks, "no")>
+
+        %% Add this to avoid setting scheduling priorities
+        #define MW_SCHED_OTHER
+
+        %if EXISTS(::numTimerDrivenTasks)
+            #define MW_NUMBER_TIMER_DRIVEN_TASKS %<::numTimerDrivenTasks> 
+        %else
+            #define MW_NUMBER_TIMER_DRIVEN_TASKS 0
+        %endif
+
+        %% %if ISEQUAL(ctAPI.detectoverrun,1)
+        %%     #define DETECT_OVERRUNS
+        %% %endif
+        %% %if locLibIsCoreAffinityRequired(isesbenabled)
+        %%     #define COREAFFINITYREQUIRED
+        %%     extern int coreAffinityBaseRate;
+        %%     extern int coreAffinity[];
+        %% %endif
+
+        %if (SLibGetNumAperiodicTasks() != 0)
+            #define MW_HAS_APERIODIC_TASKS
+        %endif
+        %if (locFcnGetNumberSubrateTasks() != 0)
+            #define MW_HAS_MULTIPLE_RATES
+        %endif
+
+        %% %if ISEQUAL(codeInstrumentationProfiling, TLC_TRUE)
+        %%     #define MW_CI_PROFILING_ON
+        %% %endif
+
+        extern void exitFcn(int sig);
+        extern void *terminateTask(void *arg);
+        extern void *baseRateTask(void *arg);
+        extern void *subrateTask(void *arg);
+        %if (SLibGetNumAperiodicTasks() != 0) 
+            extern void* (*pAsyncTasks[])(void* arg);
+        %endif
+
+        %if (ExtMode == 1)
+            %if ExtModeInBackground
+                #define MW_NEEDS_BACKGROUND_TASK  
+                %assign ppo = FEVAL("get_param", CompiledModel.Name, "PositivePriorityOrder")
+                %if ISEQUAL(ppo, "on")
+                    #define MW_BACKGROUNDTASK_PRIORITY %<BaseRate - locFcnGetNumberSubrateTasks() - 1>
+                %else
+                    #define MW_BACKGROUNDTASK_PRIORITY %<BaseRate + locFcnGetNumberSubrateTasks() + 1>
+                %endif            
+                extern void *backgroundTask(void *arg);
+                extern %<ctAPI.taskdatatype> backgroundThread;
+            %endif
+        %endif
+        %% %if locGetSupportsCommService()
+        %%     #define MW_HAS_COMM_SERVICE
+        %% %endif
+
+        %assign taskdatatype = "pthread_t"
+        %assign semdatatype = "sem_t"
+        extern %<ctAPI.taskdatatype> schedulerThread;
+        extern %<ctAPI.taskdatatype> baseRateThread;
+        extern %<ctAPI.taskdatatype> subRateThread[];
+        %if (SLibGetNumAperiodicTasks() != 0)
+            extern %<ctAPI.taskdatatype> asyncThread[];
+        %endif
+        extern %<ctAPI.semdatatype> stopSem;
+        extern %<ctAPI.semdatatype> baserateTaskSem;
+        extern %<ctAPI.semdatatype> subrateTaskSem[];
+        extern int taskId[];
+        extern int subratePriority[];
+        
+        %% %if ISEQUAL(ctAPI.detectoverrun,1)
+        %%     extern %<ctAPI.mutexdatatype> rateTaskFcnRunningMutex[];
+        %%     extern int testForRateOverrun(int rateID);
+        %% %endif
+
+        %% %if ISEQUAL(codeInstrumentationProfiling, TLC_TRUE) && !ISEMPTY(profilerAttributes)
+        %%     %if !locIsXCPBuild()
+        %%         extern %<ctAPI.mutexdatatype> profilingDataStoreMutex;
+        %%     %endif
+        %% %endif
+
+        %% %if (locLibGetNumberISRs() != 0)
+        %%     extern int eventsToBlock[];
+        %% %endif
+
+        %closefile tmpBuf
+  
+        %% %<LibSetSourceFileSection(hFile,"Includes",typesBuf)>
+        %<LibSetSourceFileSection(hFile,"Declarations",tmpBuf)>
+        
+        %% #ifndef _MW_CUSTOM_RTOS_HEADER_H_
+        %% #define _MW_CUSTOM_RTOS_HEADER_H_
+
+
+        %% #endif   /* _MW_CUSTOM_RTOS_HEADER_H_ */
+
+    %endfunction %% FcnKafkaGenerateMWRTOSHeader
+
+%endif

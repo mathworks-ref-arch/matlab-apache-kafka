@@ -1,0 +1,53 @@
+%% SYSTLC: Kafka Target TMF: ert_default_tmf MAKE: make_rtw \
+%%    EXTMODE: ext_comm
+%% 
+%%
+%% Copyright 1994-2019 The MathWorks, Inc.
+%% Abstract: Embedded real-time system target file.
+%%
+%selectfile NULL_FILE
+
+%assign CodeFormat = "Embedded-C"
+
+%assign TargetType = "RT"
+%assign Language   = "C"
+%if !EXISTS("AutoBuildProcedure")
+  %if EXISTS("GenerateSampleERTMain")
+    %assign AutoBuildProcedure = !GenerateSampleERTMain
+  %else
+    %% This is for the targets that use ert.tlc and are required to work
+    %% without Embedded Coder. This is to enable auto build procedure since
+    %% the GenerateSampleERTMain is always set to true for these targets.
+    %assign AutoBuildProcedure = TLC_TRUE
+  %endif
+%endif
+
+%% The model_SetEventsForThisBaseRate function is not required for the
+%% VxWorks environment, i.e., when using an operating system.
+%assign SuppressSetEventsForThisBaseRateFcn = (TargetOS == "VxWorksExample") 
+%if !EXISTS("InlineSetEventsForThisBaseRateFcn")
+  %assign InlineSetEventsForThisBaseRateFcn  = TLC_TRUE
+%endif
+%if !EXISTS("SuppressMultiTaskScheduler")
+  %assign SuppressMultiTaskScheduler = TLC_TRUE
+%endif
+
+%assign TargetRegistMutexOp   = 1 
+%assign TargetRegistSynchroOp = 1
+
+%include "codegenentry.tlc"
+
+%% The contents between 'BEGIN_RTW_OPTIONS' and 'END_RTW_OPTIONS' in this file
+%% are used to maintain backward compatibility to R13 and preR13 custom target 
+%% file only.  If you want to use this file as a template to develop your
+%% own system target file, you need to remove the 'CONFIGSET_TARGET_COMPONENT'
+%% section at the end of this file.
+%%
+/%
+  BEGIN_RTW_OPTIONS
+
+  [rtwoptions, rtwgensettings] = kafkatarget_opts();
+
+  END_RTW_OPTIONS 
+ %/
+

@@ -1,0 +1,246 @@
+%% ==============================================================================
+%% 
+%% 
+%% 
+%%
+%% Abstract:
+%%   Example main for bare board target (single rate model)
+%%
+%% Copyright 1994-2019 The MathWorks, Inc.
+%%
+%selectfile NULL_FILE
+
+%include "kafkatarget_main_lib.tlc"
+
+%% %include "commonthreadlib.tlc"
+
+%% %function locFcnGetNumberSubrateTasks()
+%%   %assign isSingleTasking = RootSystemIsSingleRate || SLibSingleTasking()
+%%   %if isSingleTasking
+%%     %assign numSubrateTasks = 0
+%%   %elseif LibIsDeploymentDiagram()
+%%     %assign numSubrateTasks = libFcnGetNumberMdsTasks()
+%%   %else
+%%     %assign numSubrateTasks = FcnNumST() - 1 - FixedStepOpts.TID01EQ
+%%   %endif
+%%   %return numSubrateTasks
+%% %endfunction
+
+%function FcnSingleTaskingMainKafka() void
+
+  %if ISEQUAL(1, KafkaUseThreadsForTiming)
+    %<FcnThreadedMainKafka()>
+  %else
+    %<FcnSleepMainKafka()>
+  %endif
+%endfunction %% FcnSingleTaskingMainKafka
+
+%function FcnSleepMainKafka() void
+  %if GenerateSampleERTMain
+    %assign ::CompiledModel.GenerateSampleERTMain = TLC_FALSE
+    %warning Overriding example ert_main.c!
+  %endif
+
+  %openfile tmpBuf
+
+  %<FcnKafkaMainStaticInit()>
+  static boolean_T OverrunFlag = 0;
+
+  %<SLibDeclareFcnProtoCtlVariables()>\
+  
+  %<LibWriteModelData()>\
+  %closefile tmpBuf
+  
+  %<SLibCacheCodeToFile("mainSrc_data_defn", tmpBuf)>
+  
+  %openfile tmpBuf
+  #include "%<LibGetMdlPubHdrBaseName()>.h"
+  %closefile tmpBuf
+
+  %<SLibCacheCodeToFile("mainSrc_incl", tmpBuf)>
+  
+  %openfile tmpBuf
+  %% When using task-based solution, we don't need rt_OneStep
+  
+  %assign fcnReturns = "void"
+  %assign fcnName = "rt_OneStep"
+  %assign fcnParams = ""
+  %assign fcnCategory = "main"
+  %createrecord fcnRec {Name fcnName; Returns fcnReturns; Params fcnParams; ...
+    Abstract ""; Category fcnCategory; GeneratedBy "bareboard_srmain.tlc"; ...
+    Type "Utility"}
+  %<SLibDumpFunctionBanner(fcnRec)>
+  %undef fcnRec
+  %<fcnReturns> %<fcnName>(%<fcnParams>)
+  {
+    /* Disable interrupts here */
+    
+    /* Check for overun */
+    if (OverrunFlag++) {
+      %<LibSetRTModelErrorStatus("\"Overrun\"")>;
+      return;
+    }
+    
+    
+    /* Save FPU context here (if necessary) */
+    /* Re-enable timer or interrupt here */
+    
+    %<LibCallModelStep(0)>\
+        
+    OverrunFlag--;
+    
+    /* Disable interrupts here */
+    /* Restore FPU context here (if necessary) */
+    /* Enable interrupts here */
+  }
+
+  %assign fcnReturns = "int_T"
+  %assign fcnName = "main"
+  %assign fcnParams = "int_T argc, const char *argv[]"
+  %assign fcnCategory = "main"
+  %createrecord fcnRec {Name fcnName; Returns fcnReturns; Params fcnParams; ...
+    Abstract ""; Category fcnCategory; GeneratedBy "bareboard_srmain.tlc"; ...
+    Type "Main"}
+  %<SLibDumpFunctionBanner(fcnRec)>
+  %undef fcnRec
+  %<fcnReturns> %<fcnName>(%<fcnParams>)
+  {
+    int countOF = 0;
+
+    mwLogInit("%<CompiledModel.Name>");
+    %<RTMSetErrStat(0)>;
+
+    /* Initialize model */
+    %<LibCallModelInitialize()>\
+
+    sec_to_timespec(baseRateSeconds, &baseRateTS);
+  
+    {
+      char msg[256];
+      sprintf(msg, "ts == %ld.%09ld\n", baseRateTS.tv_sec, baseRateTS.tv_nsec);
+      mwLog(MW_INFO, "MainLoop", msg);
+    }
+
+    
+    %<FcnKafkaMainLoopContent()>
+
+
+    %<LibCallModelTerminate()>\
+
+    mwLogTerminate();
+    return 0;
+  }
+  %closefile tmpBuf
+  
+  %<SLibCacheCodeToFile("mainSrc_fcn_defn", tmpBuf)>
+
+  %<SetCurrentUtilsIncludesIdx("")>
+
+%endfunction %% FcnSleepMainKafka
+
+%function FcnThreadedMainKafka() void
+  %assign ctAPI = FcnKafkaGetCTAPI()
+  %% %assign numSubrateTasks = libFcnGetNumberMdsTasks()      
+  %<SetCurrentUtilsIncludesIdx("main_util_incl")>
+  
+  %if GenerateSampleERTMain
+    %assign ::CompiledModel.GenerateSampleERTMain = TLC_FALSE
+    %warning Overriding example ert_main.c!
+  %endif
+
+  %openfile tmpBuf
+
+  %<FcnKafkaMainStaticInit()>
+  static boolean_T OverrunFlag = 0;
+
+  %<SLibDeclareFcnProtoCtlVariables()>\
+  
+  %<LibWriteModelData()>\
+  %closefile tmpBuf
+  
+  %<SLibCacheCodeToFile("mainSrc_data_defn", tmpBuf)>
+  
+  %openfile tmpBuf
+  #include "%<LibGetMdlPubHdrBaseName()>.h"
+  %closefile tmpBuf
+ 
+  %<SLibCacheCodeToFile("mainSrc_incl", tmpBuf)>
+  
+  %openfile tmpBuf
+  %% When using task-based solution, we don't need rt_OneStep
+  /%
+  %assign fcnReturns = "void"
+  %assign fcnName = "rt_OneStep"
+  %assign fcnParams = ""
+  %assign fcnCategory = "main"
+  %createrecord fcnRec {Name fcnName; Returns fcnReturns; Params fcnParams; ...
+    Abstract ""; Category fcnCategory; GeneratedBy "bareboard_srmain.tlc"; ...
+    Type "Utility"}
+  %<SLibDumpFunctionBanner(fcnRec)>
+  %undef fcnRec
+  %<fcnReturns> %<fcnName>(%<fcnParams>)
+  {
+    /* Disable interrupts here */
+    
+    /* Check for overun */
+    if (OverrunFlag++) {
+      %<LibSetRTModelErrorStatus("\"Overrun\"")>;
+      return;
+    }
+    
+    
+    /* Save FPU context here (if necessary) */
+    /* Re-enable timer or interrupt here */
+    
+    %<LibCallModelStep(0)>\
+        
+    OverrunFlag--;
+    
+    /* Disable interrupts here */
+    /* Restore FPU context here (if necessary) */
+    /* Enable interrupts here */
+  }
+   %/
+
+  %assign fcnReturns = "int_T"
+  %assign fcnName = "main"
+  %assign fcnParams = "int_T argc, const char *argv[]"
+  %assign fcnCategory = "main"
+  %createrecord fcnRec {Name fcnName; Returns fcnReturns; Params fcnParams; ...
+    Abstract ""; Category fcnCategory; GeneratedBy "bareboard_srmain.tlc"; ...
+    Type "Main"}
+  %<SLibDumpFunctionBanner(fcnRec)>
+  %undef fcnRec
+  %<fcnReturns> %<fcnName>(%<fcnParams>)
+  {
+    struct sigaction sa;
+
+    /* Register signal handler to take care of CTRL+C from user */
+    sa.sa_handler = sigintHandler;
+    sa.sa_flags = 0;
+    sigemptyset(&sa.sa_mask);
+    sigaction(SIGINT, &sa, NULL);
+    %% signal(SIGINT, sigintHandler);
+
+    %<RTMSetErrStat(0)>;
+
+    /* Initialize model */
+    %<LibCallModelInitialize()>\
+    
+    %% %<FcnKafkaMainLoopContent()>
+    /* Call RTOS Initialization function */
+    %<ctAPI.initcall>(%<FcnGetPeriodFromTID(0)>, 0);
+    /* Wait for stop semaphore */
+    %<ctAPI.semwaitcall>(&stopSem);
+
+
+%%    %<LibCallModelTerminate()>\
+    return 0;
+  }
+  %closefile tmpBuf
+  
+  %<SLibCacheCodeToFile("mainSrc_fcn_defn", tmpBuf)>
+
+  %<SetCurrentUtilsIncludesIdx("")>
+  
+%endfunction

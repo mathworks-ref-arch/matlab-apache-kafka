@@ -1,0 +1,11 @@
+slprj/
+*_ert_rtw
+*_kafka_rtw
+
+*.slxc
+modelfiles.zip
+KP_KC_CG
+KP_01_slow
+*.avro
+*.schema.json
+*.log

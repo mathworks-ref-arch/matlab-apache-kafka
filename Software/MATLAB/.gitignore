@@ -1,0 +1,12 @@
+# MATLAB
+*.mexa64
+*.mexw64
+*.slx.autosave
+*.dll
+*.pdb
+*.zip
+*.obj
+*~
+
+*.slx.r2018b
+*.slx.r2019a
