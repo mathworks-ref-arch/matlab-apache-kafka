@@ -19,7 +19,9 @@ function kafka_build_sfuns
         '-lfixedpoint', ...
         '-outdir', '..' };
     kafkaArgs = kafka.utils.getMexLibArgs();
-    if isunix
+    if ismac
+        error('OSX support not yet added to this package.\n');
+    elseif isunix
         jansson = {'-ljansson'};
     elseif ispc
         is64 = strcmp('PCWIN64', computer);

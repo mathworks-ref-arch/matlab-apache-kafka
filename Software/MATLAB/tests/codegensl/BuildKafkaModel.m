@@ -25,7 +25,7 @@ classdef BuildKafkaModel < matlab.unittest.TestCase
                 slbuild(mdl);
             catch ME
                 assertTrue(this, false, ...
-                    sprintf('Problems build model "%s" with Kafka blocks.\n%s\n', mdl, ME.message));
+                    sprintf('Problems building model "%s" with Kafka blocks.\n%s\n', mdl, ME.message));
             end
             bdclose(mdl);
         end

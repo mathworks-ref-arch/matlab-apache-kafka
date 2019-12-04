@@ -3,7 +3,9 @@ function args = getMexLibArgs()
     
     % Copyright 2019, The MathWorks Inc.
     
-    if isunix
+    if ismac
+        error('This package has not been tested on OSX yet.\n');
+    elseif isunix
         args = { ...
             '-lrdkafka', ...
             ...'-lrdkafka++', ...
@@ -11,7 +13,7 @@ function args = getMexLibArgs()
             '-lpthread', ...
             '-lrt', ...
             };
-    else
+    elseif ispc
         % Win
         rdRoot = fullfile(getenv('PROGRAMFILES'), 'RdKafka');
         incDir = fullfile(rdRoot, 'include');
@@ -22,7 +24,8 @@ function args = getMexLibArgs()
             '-lrdkafka.lib', ...
             ...'-lrdkafka++.lib', ...
             };
-        
+    else
+        error('Unknown platform\n');
     end
     
     

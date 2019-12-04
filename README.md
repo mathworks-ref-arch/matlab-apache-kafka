@@ -1,11 +1,16 @@
 # MATLAB Interface *for Apache Kafka*
 
-MATLAB® interface for Apache Kafka®.
-Kafka® is used for building real-time data pipelines and streaming apps. It is horizontally scalable, fault-tolerant, wicked fast, and runs in production in thousands of companies.
+MATLAB® interface for Apache Kafka®. This package provides Kafka clients for
+MATLAB, Simulink and Embedded Coder.
+
+Kafka® is used for building real-time data pipelines and streaming apps.
+It is horizontally scalable, fault-tolerant, fast and widely used.
 
 ## Requirements
 
-Requires MATLAB release R2018a or later. May also require Simulink when using the Kafka Client blocks.
+Requires MATLAB release R2018a or later. Also requires Simulink when using the Kafka Client blocks.
+The package is currently only supported for Windows and Linux. The Embedded Coder solution is only supported
+on Linux. 
 
 ### MathWorks Products (http://www.mathworks.com)
 
@@ -18,7 +23,8 @@ Requires MATLAB release R2018a or later. May also require Simulink when using th
 ### 3rd Party Products
 
 For building the mex functions and S-functions.
-* A C/C++ compiler for your platform, in accordance with MATLAB supported compilers.
+* A C/C++ compiler for your platform, in accordance with
+[MATLAB supported compilers](https://www.mathworks.com/support/requirements/supported-compilers.html).
 * [librdkafka](https://github.com/edenhill/librdkafka), version 1.0 or higher
 * Some other libraries, as declared in the installation of librdkafka.
 * [Optional] [jansson](http://www.digip.org/jansson/) JSON library, if you're using the Simulink JSON-Converter.

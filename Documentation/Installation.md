@@ -1,5 +1,7 @@
 # Installation
 
+This package has only been tested on Linux and Windows. No support for OSX is present, as of now.
+
 ## External dependencies
 
 For the external dependencies, please refer to the external web-sites found here:

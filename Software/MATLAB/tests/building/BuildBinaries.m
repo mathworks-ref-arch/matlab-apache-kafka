@@ -34,7 +34,7 @@ classdef BuildBinaries < matlab.unittest.TestCase
             try
                 kafka_build_dockerimages();
             catch ME
-                assertTrue(this, false, 'Something wrong with building avro mex.\n%s\n', ME.message);
+                assertTrue(this, false, 'Something wrong with building docker images.\n%s\n', ME.message);
             end
         end
 
