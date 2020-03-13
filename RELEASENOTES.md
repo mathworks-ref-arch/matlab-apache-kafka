@@ -1,6 +1,9 @@
 # MATLAB/Simulink Interface *for Apache Kafka®*
 # Release Notes
 
+## Release 0.2.3  (March 13 2020)
+* Updates to SECURITY.md
+
 ## Release 0.2.2 (December 2019)
 Minor changes in spelling, error messages, etc.
 
