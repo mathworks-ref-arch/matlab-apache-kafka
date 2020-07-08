@@ -117,7 +117,7 @@ See [documentation](Documentation/README.md) for more information.
 
 
 ## License
-The license for the MATLAB Interface *for Apache Kafka* is available in the [LICENSE.TXT](LICENSE.TXT) file in this GitHub repository.
+The license for the MATLAB Interface *for Apache Kafka* is available in the [LICENSE.md](LICENSE.md) file in this GitHub repository.
 This package uses certain third-party content which is licensed under separate license agreements.
 See the 3rd party packages for the respective license details.
 
