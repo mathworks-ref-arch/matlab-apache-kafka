@@ -9,16 +9,19 @@
 
 static char errstr[512]; /* librdkafka API error reporting buffer */
 static int verbose = 1;
+static int wait_eof = 0; /* number of partitions awaiting EOF */
 
 static void help(void);
 static void usageError(const char *msg);
 static void init(int nlhs, mxArray **plhs, const int nrhs, const mxArray **prhs);
 static void term(int nlhs, mxArray **plhs, const int nrhs, const mxArray **prhs);
-static void publish(int nlhs, mxArray **plhs, const int nrhs, const mxArray **prhs);
+static void consume(int nlhs, mxArray **plhs, const int nrhs, const mxArray **prhs);
 
+static mxArray *setNewInt8Arr(uint32_T len, int8_T *ptr);
 static mxArray *setNewMXU64(void *ptr);
 static void *getMXU64Value(const mxArray *P);
 static char *getStringFromParam(const mxArray *P, const char *msg);
+
 
 void mexFunction(int nlhs, mxArray **plhs, const int nrhs, const mxArray **prhs)
 {
@@ -40,9 +43,9 @@ void mexFunction(int nlhs, mxArray **plhs, const int nrhs, const mxArray **prhs)
 
     if (strcmp(cmd, "init") == 0)
     {
-        if (nrhs < 3)
+        if (nrhs < 4)
         {
-            usageError("You must provide at least the strings\n\tinit <brokers> <topic>");
+            usageError("You must provide at least the strings\n\tinit <brokers> <topic> <group>");
         }
         init(nlhs, plhs, nrhs, prhs);
         return;
@@ -50,7 +53,7 @@ void mexFunction(int nlhs, mxArray **plhs, const int nrhs, const mxArray **prhs)
 
     if (strcmp(cmd, "term") == 0)
     {
-        if (nrhs < 3)
+        if (nrhs < 2)
         {
             usageError("You must provide at least the arguments\n\tterm <rk> <rk_topic>");
         }
@@ -58,20 +61,23 @@ void mexFunction(int nlhs, mxArray **plhs, const int nrhs, const mxArray **prhs)
         return;
     }
 
-    if (strcmp(cmd, "publish") == 0)
+    if (strcmp(cmd, "consume") == 0)
     {
-        if (nrhs < 4)
+        if (nrhs < 2)
         {
-            usageError("You must provide at least the arguments\n\tpublish <rkt> <key> <value>");
+            usageError("You must provide at least the arguments\n\tconsume <rkt>");
         }
-        publish(nlhs, plhs, nrhs, prhs);
+        consume(nlhs, plhs, nrhs, prhs);
         return;
     }
+
+    sprintf(errstr, "Unknown command: '%s'\n", cmd);
+    usageError(errstr);
 }
 
 static void init(int nlhs, mxArray **plhs, const int nrhs, const mxArray **prhs)
 {
-    if (mxGetClassID(prhs[1]) != mxCHAR_CLASS)
+     if (mxGetClassID(prhs[1]) != mxCHAR_CLASS)
     {
         usageError("The second argument (broker) must be a character array\n");
     }
@@ -79,19 +85,27 @@ static void init(int nlhs, mxArray **plhs, const int nrhs, const mxArray **prhs)
     {
         usageError("The third argument (topic) must be a character array\n");
     }
-    if (mxGetClassID(prhs[3]) != mxCELL_CLASS)
+    if (mxGetClassID(prhs[3]) != mxCHAR_CLASS)
     {
-        usageError("The fourth argument (conf) must be a cell array of strings\n");
+        usageError("The third argument (group) must be a character array\n");
     }
-    if (mxGetClassID(prhs[4]) != mxCELL_CLASS)
+   if (mxGetClassID(prhs[4]) != mxCELL_CLASS)
     {
-        usageError("The fifth argument (topicConf) must be a cell array of strings\n");
+        usageError("The fifth argument (conf) must be a cell array of strings\n");
     }
+    if (mxGetClassID(prhs[5]) != mxCELL_CLASS)
+    {
+        usageError("The sixth argument (topicConf) must be a cell array of strings\n");
+    }
+
     char *brokers = getStringFromParam(prhs[1], "second argument <brokers>");
     char *topic = getStringFromParam(prhs[2], "third argument <topic>");
+    char *group = getStringFromParam(prhs[3], "fourth argument <group>");
 
-    int confCount = mxGetNumberOfElements(prhs[3]);
-    int topicConfCount = mxGetNumberOfElements(prhs[4]);
+    rd_kafka_t *rk = NULL;
+
+    int confCount = mxGetNumberOfElements(prhs[4]);
+    int topicConfCount = mxGetNumberOfElements(prhs[5]);
 
     if (confCount % 2 != 0)
     {
@@ -103,33 +117,34 @@ static void init(int nlhs, mxArray **plhs, const int nrhs, const mxArray **prhs)
         usageError("The elements in the topicConf argument must be key/value pairs");
     }
 
-    mwLogInit("mw_kafka_producer");
 
-    char **confArray = getConfArrayFromMX(confCount, prhs[3], topicConfCount, prhs[4]);
+    mwLogInit("mw_kafka_consumer");
+
+    char **confArray = getConfArrayFromMX(confCount, prhs[4], topicConfCount, prhs[5]);
     if (confArray == NULL)
         usageError("Problem creating strings for conf array");
 
-    rd_kafka_t *rk = NULL;
-    rd_kafka_topic_t *rkt = NULL;
 
-    int ret = mwInitializeKafkaProducer(&rk, &rkt, brokers, topic,
-                                        confCount, topicConfCount, (const char **)confArray);
-    freeConfArray(confArray, confCount + topicConfCount);
-
+    int ret = mwInitializeKafkaConsumer(&rk, brokers, group, topic, confCount, topicConfCount, (const char **)confArray);
     if (ret)
     {
-        mwLog(MW_ERROR, "KafkaProducer", "Problems initializing Kafka Producer");
+        mwLog(MW_ERROR, "KafkaConsumer", "Problems initializing Kafka Consumer\n");
     }
     else
     {
-        mwLog(MW_INFO, "KafkaProducer", "Just started Kafka Producer");
+        mwLog(MW_INFO, "KafkaConsumer", "Just started consumer");
+        mwLog(MW_INFO, "Broker(s)", brokers);
+        mwLog(MW_INFO, "Topic", topic);
+        mwLog(MW_INFO, "Group", group);
     }
+
+    freeConfArray(confArray, confCount + topicConfCount);
 
     delete[] brokers;
     delete[] topic;
+    delete[] group;
 
     plhs[0] = setNewMXU64((void *)rk);
-    plhs[1] = setNewMXU64((void *)rkt);
 }
 
 static void term(int nlhs, mxArray **plhs, const int nrhs, const mxArray **prhs)
@@ -138,70 +153,53 @@ static void term(int nlhs, mxArray **plhs, const int nrhs, const mxArray **prhs)
     {
         usageError("Second argument must be of type uint64_T\n");
     }
-    if (mxGetClassID(prhs[2]) != mxUINT64_CLASS)
-    {
-        usageError("Third argument must be of type uint64_T\n");
-    }
 
     rd_kafka_t *rk = (rd_kafka_t *)getMXU64Value(prhs[1]);
-    rd_kafka_topic_t *rkt = (rd_kafka_topic_t *)getMXU64Value(prhs[2]);
-    mwTerminateKafkaProducer(rk, rkt);
+    mwTerminateKafkaConsumer(rk);
     mwLogTerminate();
 }
 
-static void publish(int nlhs, mxArray **plhs, const int nrhs, const mxArray **prhs)
+static void consume(int nlhs, mxArray **plhs, const int nrhs, const mxArray **prhs)
 {
-    bool useTimestamp = false;
     if (mxGetClassID(prhs[1]) != mxUINT64_CLASS)
     {
         usageError("Second argument (rk*) must be of type uint64_T\n");
     }
-    if (mxGetClassID(prhs[2]) != mxUINT64_CLASS)
+
+    rd_kafka_t *rk = (rd_kafka_t *)getMXU64Value(prhs[1]);
+
+    rd_kafka_message_t *rkmessage = rd_kafka_consumer_poll(rk, 100);
+    if (rkmessage)
     {
-        usageError("Third argument (rk_topic*) must be of type uint64_T\n");
-    }
-    if (mxGetClassID(prhs[3]) != mxINT8_CLASS)
-    {
-        usageError("Fourth argument (key) must be of type int8_T\n");
-    }
-    if (mxGetClassID(prhs[4]) != mxINT8_CLASS)
-    {
-        usageError("Fifth argument (value) must be of type int8_T\n");
-    }
-    if (nrhs > 5)
-    {
-        if (mxGetClassID(prhs[5]) != mxINT64_CLASS)
+        if (rkmessage->err)
         {
-            usageError("Sixth argument must be a timestamp of type int64_T\n");
+            // Error somehow
+            plhs[0] = setNewInt8Arr(0, NULL);
+            plhs[1] = setNewInt8Arr(0, NULL);
+            plhs[2] = mxCreateString("Still an error, somehow ... ");
         }
         else
         {
-            useTimestamp = true;
+            uint32_T mLen, kLen;
+
+            kLen = rkmessage->key_len;
+            ;
+            plhs[0] = setNewInt8Arr(kLen, (int8_T *)rkmessage->key);
+
+            mLen = (uint32_T)rkmessage->len;
+            plhs[1] = setNewInt8Arr(mLen, (int8_T *)rkmessage->payload);
+
+            if (nlhs > 2)
+                plhs[2] = mxCreateString("");
         }
-    }
-    rd_kafka_t *rk = (rd_kafka_t *)getMXU64Value(prhs[1]);
-    rd_kafka_topic_t *rkt = (rd_kafka_topic_t *)getMXU64Value(prhs[2]);
 
-    int keylen = mxGetNumberOfElements(prhs[3]);
-    mxInt8 *key = mxGetInt8s(prhs[3]);
-
-    int vallen = mxGetNumberOfElements(prhs[4]);
-    mxInt8 *val = mxGetInt8s(prhs[4]);
-
-    if (useTimestamp)
-    {
-        int64_T *tsp = mxGetInt64s(prhs[5]);
-        int64_T ts = tsp[0];
-        int ret = mwProduceKafkaMessageWithTimestamp(rk, rkt,
-                                                     (const char *)key, keylen,
-                                                     (const char *)val, vallen,
-                                                     ts);
+        rd_kafka_message_destroy(rkmessage);
     }
     else
     {
-        int ret = mwProduceKafkaMessage(rk, rkt,
-                                        (const char *)key, keylen,
-                                        (const char *)val, vallen);
+        plhs[0] = setNewInt8Arr(0, NULL);
+        plhs[1] = setNewInt8Arr(0, NULL);
+        plhs[2] = mxCreateString("### No message!!");
     }
 }
 
@@ -251,6 +249,23 @@ static mxArray *setNewMXU64(void *ptr)
     return R;
 }
 
+static mxArray *setNewInt8Arr(uint32_T len, int8_T *ptr)
+{
+    mwSize nDims = 1;
+    mwSize dims[] = {len};
+    mxArray *R = mxCreateNumericArray(nDims, dims, mxINT8_CLASS, mxREAL);
+    if (R == NULL)
+    {
+        usageError("Couldn't allocate numeric array\n");
+    }
+    if (len > 0)
+    {
+        mxInt8 *pr = mxGetInt8s(R);
+        memcpy(pr, ptr, len * sizeof(mxInt8));
+    }
+    return R;
+}
+
 static void usageError(const char *msg)
 {
     help();
@@ -259,5 +274,22 @@ static void usageError(const char *msg)
 
 static void help(void)
 {
-    mexPrintf("mx_kafka_producer: Usage\n");
+    mexPrintf("=========================================\n");
+    mexPrintf("mx_kafka_consumer: Usage\n");
 }
+
+static void print_partition_list(const rd_kafka_topic_partition_list_t
+                                     *partitions)
+{
+    int i;
+    for (i = 0; i < partitions->cnt; i++)
+    {
+        mexPrintf("%s %s [%" PRId32 "] offset %" PRId64,
+                  i > 0 ? "," : "",
+                  partitions->elems[i].topic,
+                  partitions->elems[i].partition,
+                  partitions->elems[i].offset);
+    }
+    mexPrintf("\n");
+}
+

@@ -8,5 +8,4 @@ function startup
     end
     install(false)
     here = fileparts(mfilename('fullpath'));
-    cd(fullfile(here, 'examples'));
 end

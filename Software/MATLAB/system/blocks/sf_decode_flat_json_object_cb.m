@@ -96,7 +96,4 @@ function idx = findParamIndex(blk, name)
 
 
 end
-%
-% function toggleSettings(blk)
-%
-% end
+

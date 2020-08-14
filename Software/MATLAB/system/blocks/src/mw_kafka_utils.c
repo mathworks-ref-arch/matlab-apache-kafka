@@ -521,6 +521,42 @@ int mwProduceKafkaMessage(rd_kafka_t *rk, rd_kafka_topic_t *rkt,
     return ret;
 }
 
+int mwProduceKafkaMessageWithTimestamp(rd_kafka_t *rk, rd_kafka_topic_t *rkt,
+                                       const char *key, int keyLen,
+                                       const char *buf, int bufLen,
+                                       int64_T timestamp)
+{
+    int ret = 1;
+
+    rd_kafka_resp_err_t err = rd_kafka_producev(rk,
+                                                RD_KAFKA_V_RKT(rkt),
+                                                // RD_KAFKA_V_PARTITION(RD_KAFKA_PARTITION_UA), // Default anyway
+                                                RD_KAFKA_V_MSGFLAGS(RD_KAFKA_MSG_F_COPY),
+                                                RD_KAFKA_V_VALUE((char *)buf, bufLen),
+                                                RD_KAFKA_V_KEY((const void *)key, keyLen),
+                                                RD_KAFKA_V_TIMESTAMP(timestamp),
+                                                // RD_KAFKA_V_HEADERS(hdrs_copy),
+                                                RD_KAFKA_V_END);
+
+    if (err != RD_KAFKA_RESP_ERR_NO_ERROR)
+    {
+        if (err == RD_KAFKA_RESP_ERR__QUEUE_FULL)
+        {
+            mwLog(MW_ERROR, "mwProduceKafkaMessageWithTimestamp: produce error (backpressure): ", rd_kafka_err2str(err));
+        }
+        else
+        {
+            mwLog(MW_ERROR, "mwProduceKafkaMessageWithTimestamp: produce error: ", rd_kafka_err2str(err));
+        }
+    }
+    else
+    {
+        ret = 0;
+    }
+
+    return ret;
+}
+
 void mwTerminateKafkaConsumer(rd_kafka_t *rk)
 {
     int verbose = 1;
@@ -545,7 +581,10 @@ void mwTerminateKafkaProducer(rd_kafka_t *rk, rd_kafka_topic_t *rkt)
     /* 1) Make sure all outstanding requests are transmitted and handled. */
     int N;
     while ((N = rd_kafka_outq_len(rk)) > 0)
-        rd_kafka_poll(rk, 50);
+    {
+        // rd_kafka_poll(rk, 50);
+        rd_kafka_flush(rk, 2000);
+    }
 
     /* 2) Destroy the topic and handle objects */
     if (rkt != NULL)

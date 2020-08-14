@@ -31,12 +31,16 @@ For building the mex functions and S-functions.
 
 ## Introduction
 
-[Apache Kafka®](http://kafka.apache.org/)  is a community distributed event streaming platform capable of handling trillions of events a day. Initially conceived as a messaging queue, Kafka is based on an abstraction of a distributed commit log. Since being created and open sourced by LinkedIn in 2011, Kafka has quickly evolved from messaging queue to a full-fledged event streaming platform.
+[Apache Kafka®](http://kafka.apache.org/)  is a community distributed event streaming platform capable of handling
+trillions of events a day. Initially conceived as a messaging queue, Kafka is based on an abstraction of a
+distributed commit log. Since being created and open sourced by LinkedIn in 2011, Kafka has quickly evolved
+from messaging queue to a full-fledged event streaming platform.
 
-This project contains C/C++-based Kafka Clients, a producer for MATLAB, and producers and consumers for Simulink. In Simulink,
+This project contains C/C++-based Kafka Clients, producers and consumers, for both MATLAB and Simulink. In Simulink,
 code generation with Embedded Coder is also supported.
 
-The usage in MATLAB is for prototyping, and if you want to use it in a production system, we recommend compiling your code for *MATLAB Production Server*.
+The usage in MATLAB is for prototyping, and if you want to use it in a production system, we recommend compiling
+your code for *MATLAB Production Server*.
 
 For usage in Simulink, this is also prototyping. Generate C code using Embedded Coder to use in a production environment.
 
@@ -75,7 +79,7 @@ Using the Kafka producer is straightforward.
 
 ```matlab
 P = kafka.Producer('<mybroker>', '<mytopic>');
-P.public('mykey', 'my message');
+P.publish('mykey', 'my message');
 ```
 The same producer can, and should be used for sending several
 messages to the same topic.
@@ -92,6 +96,12 @@ S =
 >> jsstr = jsonencode(S)
 jsstr =
     '{"item":"3422","value":[3,4,5]}'
+```
+
+The Kafka consumer is similar.
+```matlab
+C = kafka.Consumer(brokers, topic, group);
+[key, val, errMsg] = C.consume(timeoutMillis);
 ```
 
 Please see the [documentation](Documentation/README.md) for more information.
@@ -117,7 +127,8 @@ See [documentation](Documentation/README.md) for more information.
 
 
 ## License
-The license for the MATLAB Interface *for Apache Kafka* is available in the [LICENSE.md](LICENSE.md) file in this GitHub repository.
+The license for the MATLAB Interface *for Apache Kafka* is available in the [LICENSE.md](LICENSE.md)
+file in this GitHub repository.
 This package uses certain third-party content which is licensed under separate license agreements.
 See the 3rd party packages for the respective license details.
 

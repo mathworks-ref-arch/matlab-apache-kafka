@@ -1,6 +1,7 @@
 # Basic Usage
 
-## MATLAB Kafka Producer
+## MATLAB clients
+### Kafka Producer
 Using the Kafka producer is straightforward.
 
 ```matlab
@@ -18,9 +19,21 @@ msg =
     '{"Temp":37,"Elev":214}'
 ```
 
+### Kafka Consumer
+The Kafka consumer is similar.
+```matlab
+C = kafka.Consumer(brokers, topic, group);
+[key, val, errMsg] = C.consume(timeoutMillis);
+```
+
+For the consumer, it's important, that it is polled regularly. If it's not polled for a while, it will get removed from its consumer group. The kickout time is related to the configurations `session.timeout.ms`, `heartbeat.interval.ms` and `max.poll.interval.ms`, which are further explained in the [librdkafka documentation](https://github.com/edenhill/librdkafka/blob/master/CONFIGURATION.md).
+
+A well functioning workflow can be to poll the consumer continuously in a loop, and acting on messages received,
+and also to add a small `pause` when no messages have arrived, to reduce cpu usage when idle. The pause, of course, should be smaller than the `max.poll.interval.ms`.
+
 ## Simulink clients
 
-For Simulink, there are both producer and consumer blocks, as well as
+For Simulink, there are also both producer and consumer blocks, as well as
 a simple JSON converter block.
 
 ![sl_kafka_libs](images/sl_kafka_lib.png)

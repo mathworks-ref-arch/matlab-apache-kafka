@@ -5,6 +5,7 @@ function kafka_build_mex
     
     here = fileparts(mfilename('fullpath'));
     
+    clearKafkaInBaseWorkspace();
     srcDir = fullfile(here, 'src');
     incDir = fullfile(here, 'inc');
     old = cd(fullfile(here, 'src'));
@@ -34,3 +35,16 @@ function kafka_build_mex
         end
     end
 end
+
+function clearKafkaInBaseWorkspace()
+   S = evalin('base', 'whos');
+   idxP = strcmp('kafka.Producer', {S.class});
+   idxC = strcmp('kafka.Consumer', {S.class});
+   idx = idxP | idxC;
+   if any(idx)
+       fprintf('### Clearing kafka.Producer and kafka.Consumer objects in base workspace\n');
+   clearStr = sprintf('clear %s', sprintf('%s ', S(idx).name));
+   evalin('base', clearStr);
+   end
+end
+

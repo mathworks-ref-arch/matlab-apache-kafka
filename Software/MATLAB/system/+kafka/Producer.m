@@ -29,6 +29,9 @@ classdef Producer < handle
         function publish(this, key, value)
             mx_kafka_producer('publish', this.RK, this.RK_TOPIC, int8(key), int8(value));
         end
+        function publishWithTimestamp(this, key, value, posixTS)
+            mx_kafka_producer('publish', this.RK, this.RK_TOPIC, int8(key), int8(value), posixTS);
+        end
         
         function delete(this)
             if ~isempty(this.RK)

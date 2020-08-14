@@ -50,6 +50,11 @@ extern "C"
                               const char *key, int keyLen,
                               const char *buf, int bufLen);
 
+    int mwProduceKafkaMessageWithTimestamp(rd_kafka_t *rk, rd_kafka_topic_t *rkt,
+                                           const char *key, int keyLen,
+                                           const char *buf, int bufLen,
+                                           int64_T timestamp);
+
     void mwTerminateKafkaConsumer(rd_kafka_t *rk);
 
     void mwTerminateKafkaProducer(rd_kafka_t *rk, rd_kafka_topic_t *rkt);
