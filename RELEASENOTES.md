@@ -1,6 +1,9 @@
 # MATLAB/Simulink Interface *for Apache Kafka®*
 # Release Notes
 
+## Release 0.3.1 (September 16 2020)
+* Add missing build for Kafka Consumer
+
 ## Release 0.3.0  (August 14 2020)
 * Add MATLAB Kafka Consumer
 * Add MATLAB Kafka Producer method with timestamps argument
