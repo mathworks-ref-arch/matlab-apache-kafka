@@ -25,6 +25,7 @@ on Linux.
 For building the mex functions and S-functions.
 * A C/C++ compiler for your platform, in accordance with
 [MATLAB supported compilers](https://www.mathworks.com/support/requirements/supported-compilers.html).
+* [CMake](https://cmake.org/), for building dependencies on Windows
 * [librdkafka](https://github.com/edenhill/librdkafka), version 1.0 or higher
 * Some other libraries, as declared in the installation of librdkafka.
 * [Optional] [jansson](http://www.digip.org/jansson/) JSON library, if you're using the Simulink JSON-Converter.

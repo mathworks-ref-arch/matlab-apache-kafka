@@ -10,3 +10,4 @@
 
 *.slx.r2018b
 *.slx.r2019a
+mw_kafka*.log

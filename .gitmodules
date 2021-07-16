@@ -1,0 +1,6 @@
+[submodule "Software/CPP/jansson"]
+	path = Software/CPP/jansson
+	url = https://github.com/akheron/jansson.git
+[submodule "Software/CPP/librdkafka"]
+	path = Software/CPP/librdkafka
+	url = https://github.com/edenhill/librdkafka.git

@@ -1,6 +1,12 @@
 # MATLAB/Simulink Interface *for Apache Kafka®*
 # Release Notes
 
+## Release 0.3.2 (July 16 2021)
+* Add librdkafka and jansson as git submodules
+* Clearer installation instructions
+* Offline installer added
+* Reorganized file locations
+
 ## Release 0.3.1 (September 16 2020)
 * Add missing build for Kafka Consumer
 

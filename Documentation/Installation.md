@@ -1,57 +1,119 @@
 # Installation
 
-This package has only been tested on Linux and Windows. No support for OSX is present, as of now.
+This package has only been tested on Linux and Windows. No support for OSX is present, as of now,
+but may well be possible.
 
 ## External dependencies
 
-For the external dependencies, please refer to the external web-sites found here:
+The *matlab-kafka-producer* package has two external dependencies:
 
-* [librdkafka](https://github.com/edenhill/librdkafka), version 1.0 or higher
-* [Optional] [jansson](http://www.digip.org/jansson/) JSON library, if you're using the Simulink JSON-Converter.
+* [librdkafka](https://github.com/edenhill/librdkafka), and
+* [Optional] [jansson](http://www.digip.org/jansson/)
+
+These are part of the repository, as submodules, referring to the repositories above.
+
+To build them, follow these steps.
 
 ### librdkafka
 
-`librdkafka` must have version 1.0 or higher. Use a package manager if possible, and build from source if not.
-
 #### Linux
-Get librdkafka from github and checkout a stable version (`>=1.0`), and follow the README file. Basically
+1. `cd` into the folder `Software/CPP/librdkafka` and then
+
+2. Configure and build the package
 ```bash
 ./configure
 make
-sudo make install
 ```
 
+3. Copy the file `librdkafka.so` from `Software/CPP/librdkafka/src`
+to `Software/MATLAB/app/sfun`, and
+copy the file `librdkafka.a` from `Software/CPP/librdkafka/src`
+to `Software/MATLAB/app/sfun/lib`.
+
 #### Windows
-Get librdkafka from github and checkout a stable version (`>=1.0`), and follow the README file. Basically
+To run this installation, an installation of [CMake](https://cmake.org/) will be necessary.
+
+1. `cd` into the folder `Software\CPP\librdkafka`
+
+2. Create a Visual Studio solution for the Software:
 ```none
 mkdir build.win64
 cd build.win64
 cmake -LH -G "Visual Studio 15 2017 Win64" ..
-cd ..
 ```
-After doing so, the `RdKafka.sln` can be used to build the libraries using the MSVC IDE. To perform the install, it will probably be necessary to start MSVC as Administrator.
+If using a different version of *Visual Studio*, the argument will look different.
+Run
+```none
+cmake -G
+```
+to see what generators are available, and map the correct name to the version
+installed on the system.
 
-For the runtime on Windows, you must add the location of your DLL to your PATH variable, or copy it to the folder where your mex-file was created.
+3. Build the solution. This can be done either by
+    1. opening the project with Visual Studio and then building it from there
+    2. Running the build from the command line, using `msbuild`
+    ```none
+    msbuild RdKafka.sln /p:Configuration=Release
+    ```
+    A suitable environment for `msbuild` can easily be opened from the Visual Studio Folder in the
+    Windows Applications menu by clicking something like *Developer Command Prompt for VS 2017*.
+
+4. Copy the file `rdkafka.dll` from the folder
+`Software\CPP\librdkafka\build.win64\src\Release` into
+`Software\MATLAB\app\sfun`, and
+copy the file `rdkafka.lib` from the folder
+`Software\CPP\librdkafka\build.win64\src\Release` into
+`Software\MATLAB\app\sfun\lib`
 
 ### Jansson
 
 #### Linux
-On Ubuntu, Jansson is available through `apt`. 
+
+1. `cd` into the folder `Software/CPP/librdkafka` and then
+
+2. Configure and build the package
+```bash
+./configure
+make
+```
+
+3. Copy the file `libjansson.so` from `Software/CPP/jansson/src/.libs`
+to `Software/MATLAB/app/sfun`, and
+copy the file `libjansson.a` from `Software/CPP/jansson/src/.libs`
+to `Software/MATLAB/app/sfun/lib/lib`.
 
 #### Windows
-On Windows, build Jansson from source using the following steps.
-Download the sources from the link above, or from github. When using github, make sure to checkout release 2.12.
 
-In the source directory of Jansson:
+To run this installation, an installation of [CMake](https://cmake.org/) will be necessary.
+
+1. `cd` into the folder `Software\CPP\jansson`
+
+2. Create a Visual Studio solution for the Software:
 ```none
 mkdir build.win64
 cd build.win64
 cmake -LH -G "Visual Studio 15 2017 Win64" ..
-cd ..
 ```
+If using a different version of *Visual Studio*, the argument will look different.
+Run
+```none
+cmake -G
+```
+to see what generators are available, and map the correct name to the version
+installed on the system.
 
-After doing so, the `jansson.sln` can be used to build the libraries using the MSVC IDE. To perform the install, it will probably be necessary to start MSVC as Administrator.
+3. Build the solution. This can be done either by
+    1. opening the project with Visual Studio and then building it from there
+    2. Running the build from the command line, using `msbuild`
+    ```none
+    msbuild jansson.sln /p:Configuration=Release
+    ```
+    A suitable environment for `msbuild` can easily be opened from the Visual Studio Folder in the
+    Windows Applications menu by clicking something like *Developer Command Prompt for VS 2017*.
 
+4. Copy the file `jansson.lib` from the folder
+`Software\CPP\jansson\build.win64\lib\Release` into
+`Software\MATLAB\app\sfun\lib`.
 
 ## MATLAB libraries
 
@@ -80,5 +142,3 @@ kafka_build_dockerimages
 
 If there are any problems with linking or include files, please take a look at the file
 [kafka.utils.getMexLibArgs](/Software/MATLAB/system/+kafka/+utils/getMexLibArgs.m), and adapt file paths if needed.
-
-
