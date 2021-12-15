@@ -92,12 +92,13 @@
                         %% Do nothing
                     %else
                         if (ret) {
-                            %assign sysIdx  = BlockToCall[0]
-                            %assign blkIdx  = BlockToCall[1]
-                            %assign ssBlock = System[sysIdx].Block[blkIdx]
+                            %% %assign sysIdx  = BlockToCall[0]
+                            %% %assign blkIdx  = BlockToCall[1]
+                            %% %assign ssBlock = System[sysIdx].Block[blkIdx]
                             %% %openfile tmp2Buffer
-                            %<LibExecuteFcnCall(ssBlock, FcnPortElement, block.TID)>\
+                            %% %<LibExecuteFcnCall(ssBlock, FcnPortElement, block.TID)>\
                             %% %closefile tmp2Buffer
+                             %<LibBlockExecuteFcnCall(block, 0)>\
                         }
                     %endif                    
                 %endwith
