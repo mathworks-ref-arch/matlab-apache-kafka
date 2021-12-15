@@ -1,6 +1,9 @@
 # MATLAB/Simulink Interface *for Apache Kafka®*
 # Release Notes
 
+## Release 0.3.3 (December 15 2020)
+* Make sure Docker image doesn't run as root
+
 ## Release 0.3.2 (July 16 2021)
 * Add librdkafka and jansson as git submodules
 * Clearer installation instructions
