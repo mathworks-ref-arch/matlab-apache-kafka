@@ -1,7 +1,7 @@
 function consume_in_loop(timeout, brokers)
     % consume_in_loop Simple test function for listening with Kafka consumer
     
-    % Copyright 2020 The MathWorks, Inc.
+    % Copyright 2020-2022 The MathWorks, Inc.
     
     if nargin < 2
         brokers = 'localhost:9092';
@@ -17,7 +17,7 @@ function consume_in_loop(timeout, brokers)
         fprintf('.');
         [k,v,msg] = C.consume();
         if ~isempty(v)
-            VI = min(length(v), 50);
+            VI = min(length(v), 80);
             fprintf('#%02d: %s -- %s\n', n, k, v(1:VI));
             lastTime = tic;
         end

@@ -27,8 +27,11 @@ classdef Consumer < handle
             this.Group = group;
         end
 
-        function [key, val, errMsg] = consume(this)
-            [key, val, errMsg] = mx_kafka_consumer('consume', this.RK);
+        function [key, val, errMsg] = consume(this, timeout)
+            if nargin < 2
+                timeout = 100;
+            end
+            [key, val, errMsg] = mx_kafka_consumer('consume', this.RK, double(timeout));
         end
 
         function delete(this)

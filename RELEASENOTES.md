@@ -1,6 +1,9 @@
 # MATLAB/Simulink Interface *for Apache Kafka®*
 # Release Notes
 
+## Release 0.3.5 (March 2 2022)
+* Add consume timeout for MATLAB client
+
 ## Release 0.3.4 (December 15 2020)
 * Fix some code generation issues
 

@@ -17,8 +17,8 @@ classdef BuildBinaries < matlab.unittest.TestCase
         function testBuildMexFuns(this)
             try
                 kafka_build_mex();
-            catch ME %#ok<NASGU>
-                assertTrue(this, false);
+            catch ME
+                assertTrue(this, false, 'Something wrong with building mex files.\n%s\n', ME.message);
             end
         end
 
@@ -26,7 +26,7 @@ classdef BuildBinaries < matlab.unittest.TestCase
             try
                 kafka_build_sfuns();
             catch ME
-                assertTrue(this, false);
+                assertTrue(this, false, 'Something wrong with building s-functions.\n%s\n', ME.message);
             end
         end
 
@@ -34,7 +34,7 @@ classdef BuildBinaries < matlab.unittest.TestCase
             try
                 kafka_build_dockerimages();
             catch ME
-                assertTrue(this, false);
+                assertTrue(this, false, 'Something wrong with building docker images.\n%s\n', ME.message);
             end
         end
 

@@ -63,9 +63,9 @@ void mexFunction(int nlhs, mxArray **plhs, const int nrhs, const mxArray **prhs)
 
     if (strcmp(cmd, "consume") == 0)
     {
-        if (nrhs < 2)
+        if (nrhs < 3)
         {
-            usageError("You must provide at least the arguments\n\tconsume <rkt>");
+            usageError("You must provide at least the arguments\n\tconsume <rkt> <timeout>");
         }
         consume(nlhs, plhs, nrhs, prhs);
         return;
@@ -166,9 +166,16 @@ static void consume(int nlhs, mxArray **plhs, const int nrhs, const mxArray **pr
         usageError("Second argument (rk*) must be of type uint64_T\n");
     }
 
-    rd_kafka_t *rk = (rd_kafka_t *)getMXU64Value(prhs[1]);
+    if (mxGetClassID(prhs[2]) != mxDOUBLE_CLASS)
+    {
+        usageError("The third argument (timeout) must be a double\n");
+    }
 
-    rd_kafka_message_t *rkmessage = rd_kafka_consumer_poll(rk, 100);
+    rd_kafka_t *rk = (rd_kafka_t *)getMXU64Value(prhs[1]);
+    double *timeoutDoubles = mxGetDoubles(prhs[2]);
+    int timeoutParam = (int) (timeoutDoubles[0]);
+
+    rd_kafka_message_t *rkmessage = rd_kafka_consumer_poll(rk, timeoutParam);
     if (rkmessage)
     {
         if (rkmessage->err)

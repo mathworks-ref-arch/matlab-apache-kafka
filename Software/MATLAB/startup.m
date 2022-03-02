@@ -1,25 +1,16 @@
 function startup(varargin)
-    %% STARTUP - Script to add my paths to MATLAB path
-    % This script will add the paths below the root directory into the MATLAB
-    % path. It will omit the SVN and other crud.  You may modify undesired path
-    % filter to your desire.
+    % STARTUP - Add kafka paths to MATLAB path
     
-    
-    % Auth/Revision:  Anders Sollander
+    % Copyright 2019-2022 The MathWorks, Inc.
     
     appStr = 'Adding  Paths';
     disp(appStr);
     disp(repmat('-',1,numel(appStr)));
     
-    %% Set up the paths to add to the MATLAB path
-    % This should be the only section of the code that you need to modify
-    % The second argument specifies whether the given directory should be
-    % scanned recursively
+    % Set up the paths to add to the MATLAB path
+
     here = fileparts(mfilename('fullpath'));
-    
-    % Add the appropriate architecture binaries
-    archDir = iGetArchSuffix(); %#ok<NASGU>
-    
+       
     rootDirs={...
         fullfile(here,'app', 'system'),false;...
         fullfile(here,'app', 'functions'),false;...
@@ -112,23 +103,10 @@ function iAddFilteredFolders(rootDirs)
         
     end
     
-    %% Post path-setup operations
-    
-    % Example: Change to a particular directory
-    % cd( fullfile( here, 'examples' ) );
-    
-    % Example: Setup Simulink code generation folders
-    %myCacheFolder = fullfile('C:','cachefolder');
-    %myCodeGenFolder = pwd;
-    %Simulink.fileGenControl('set', 'CacheFolder', myCacheFolder, ...
-    %   'CodeGenFolder', myCodeGenFolder);
-    
-    % Example: Setup Java dynamic path
-    %iSafeAddToJavaPath(fullfile(spellroot,'lib','java','MATLABSpellCheck','dist','MATLABSpellCheck.jar'));
     
 end
 
-%% Helper function to add to MATLAB path.
+% Helper function to add to MATLAB path.
 function iSafeAddToPath(pathStr)
     
     % Add to path if the file exists
@@ -138,13 +116,5 @@ function iSafeAddToPath(pathStr)
     else
         disp(['Skipping ',pathStr]);
     end
-    
-end
-
-
-%% Helper function to add arch specific suffix
-function binDirName = iGetArchSuffix()
-    
-    binDirName = computer('arch');
     
 end
