@@ -12,7 +12,7 @@ Requires MATLAB release R2018a or later. Also requires Simulink when using the K
 The package is currently only supported for Windows and Linux. The Embedded Coder solution is only supported
 on Linux. 
 
-### MathWorks Products (http://www.mathworks.com)
+### MathWorks Products (https://www.mathworks.com)
 
 * MATLAB
 * [Optional] Simulink
